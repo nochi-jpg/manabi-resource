@@ -172,7 +172,8 @@ def check_and_build(qs, units):
             elif len({kata2hira(norm(x)) for x in c}) != 4: warns.append(f'{tag}: {name}モードでかな/カナちがいだけの選択肢 {c}')
         c = kj[1:5]
         nums = [num(x) for x in c]
-        if all(n is not None for n in nums) and len(set(nums)) != 4: errs.append(f'{tag}: 同じ値の選択肢 {c}')
+        units_ = [re.sub(r'^[\d./と,]+', '', x.replace(' ', '')) for x in c]
+        if all(n is not None for n in nums) and len(set(zip(nums, units_))) != 4: errs.append(f'{tag}: 同じ値の選択肢 {c}')
         if q['subject'] == '算数':
             v = try_eval(kj[0])
             if v == 'ERR': warns.append(f'{tag}: 式を計算できなかった')
