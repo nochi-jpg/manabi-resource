@@ -189,7 +189,7 @@ def check_and_build(qs, units):
         nq = norm(kj[0])
         if len(norm(c[0])) >= 3 and norm(c[0]) in nq and q['subject'] != '英語' and not all(norm(x) in nq for x in c[1:]):
             warns.append(f'{tag}: 正解が問題文に入っている「{c[0]}」')
-        k = (q['subject'], nq)
+        k = (q['subject'], re.sub(r'\s', '', kj[0]))
         if k in seenq: errs.append(f'{tag}: 同じ問題文が {seenq[k]} にある')
         seenq[k] = qid
         if not kj[5]: errs.append(f'{tag}: 解説がない')
