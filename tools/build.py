@@ -52,7 +52,7 @@ def learned(base, grade):
             prev = c
     return True
 
-def render(src, grade, mode, where=''):
+def render(src, grade, mode, where='', allk=False):
     """mode: 'kanji' / 'kana'"""
     out, pos = [], 0
     for m in RE_TOKEN.finditer(src):
@@ -68,7 +68,7 @@ def render(src, grade, mode, where=''):
             if not RE_KANA.match(yomi): errs.append(f'{where}: 読みがかなでない {{{base}|{yomi}}}')
             if not RE_KANJI.search(base): errs.append(f'{where}: 漢字のないルビ {{{base}|{yomi}}}')
             if mode == 'kana': out.append(yomi)
-            else: out.append(base if (force or learned(base, grade)) else yomi)
+            else: out.append(base if (force or allk or learned(base, grade)) else yomi)
     plain = src[pos:]
     if RE_KANJI.search(plain): errs.append(f'{where}: はだかの漢字「{plain}」')
     if re.search(r'[{}\[\]|]', plain) or any(re.search(r'[{}|]', o) for o in out if False):
@@ -158,7 +158,9 @@ def check_and_build(qs, units):
     out, seenq = [], {}
     for q in qs:
         g, raw, qid = q['grade'], q['raw'], q['id']
-        kj = [render(x, g, 'kanji', qid) for x in raw]
+        # 社会の5・6年は、教科書と同じく用語・地名・人名を漢字で出す（読めないときは かなモード）
+        allk = q['subject'] == '社会' and g >= 5
+        kj = [render(x, g, 'kanji', qid, allk) for x in raw]
         kn = [render(x, g, 'kana', qid) for x in raw]
         # かなモードに漢字が残っていないか（[ ] の中は対象の字なのでよい）
         for x in raw:
