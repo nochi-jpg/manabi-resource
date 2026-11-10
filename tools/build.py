@@ -7,6 +7,7 @@
 # 原稿の書き方（src/<教科コード>/<学年>.txt）
 #   % 教科名 学年                      ← ファイルの1行目
 #   @ 番号 | 領域 | 単元名              ← 単元のはじまり（番号は2けた・学年の中で重ならない）
+#   @+ 番号                           ← 別ファイル（src/<教科>/<学年>-<名前>.txt）から、その単元に問題を足す
 #   問題文                              ← ここから6行で1問。問題と問題の間は空行
 #   正解
 #   まちがい1
@@ -84,17 +85,26 @@ def parse():
     qs, units = [], []
     for code, subj, grades in SUBJECTS:
         for g in grades:
-            p = SRC / code / f'{g}.txt'
-            if not p.exists():
-                warns.append(f'原稿がない: {p.relative_to(ROOT)}'); continue
+            files = sorted((p for p in (SRC / code).glob(f'{g}*.txt') if re.fullmatch(rf'{g}(-[a-z0-9]+)?\.txt', p.name)),
+                           key=lambda p: (p.name != f'{g}.txt', p.name))
+            if not files:
+                warns.append(f'原稿がない: src/{code}/{g}.txt'); continue
+            umap = {}
+            for p in files:
+                _parse_file(p, code, subj, g, qs, units, umap)
+    return qs, units
+
+def _parse_file(p, code, subj, g, qs, units, umap):
+    if True:
+        if True:
             lines = p.read_text(encoding='utf-8').split('\n')
             if lines[0].strip() != f'% {subj} {g}': errs.append(f'{p.name}: 1行目が「% {subj} {g}」でない')
-            unit, block, seen_u = None, [], set()
+            unit, block, seen_u = None, [], set(umap)
             def flush(ln):
                 nonlocal block
                 if not block: return
                 if unit is None: errs.append(f'{code}{g} {ln}行: 単元の前に問題がある')
-                elif len(block) != 6: errs.append(f'{code}{g} {ln}行あたり: 6行でない（{len(block)}行）「{block[0][:20]}」')
+                elif len(block) != 6: errs.append(f'{p.name} {ln}行あたり: 6行でない（{len(block)}行）「{block[0][:20]}」')
                 else:
                     unit['n'] += 1
                     qid = f"{code}{g}-{unit['no']}-{unit['n']:02d}"
@@ -102,25 +112,27 @@ def parse():
                 block = []
             for ln, line in enumerate(lines[1:], 2):
                 line = line.strip()
-                if line.startswith('@'):
+                if line.startswith('@+'):
                     flush(ln)
-                    parts = [x.strip() for x in line[1:].split('|')]
-                    # 単元名にはルビの | があるので、先頭2つだけで分ける
+                    no = line[2:].strip()
+                    if no not in umap: errs.append(f'{p.name} {ln}行: つづきの単元 {no} がない'); continue
+                    unit = umap[no]
+                elif line.startswith('@'):
+                    flush(ln)
                     parts = [x.strip() for x in line[1:].split('|', 2)]
                     if len(parts) != 3 or not re.fullmatch(r'\d\d', parts[0]):
-                        errs.append(f'{code}{g} {ln}行: 単元の行がおかしい'); continue
-                    if parts[0] in seen_u: errs.append(f'{code}{g} {ln}行: 単元番号が重複 {parts[0]}')
+                        errs.append(f'{p.name} {ln}行: 単元の行がおかしい'); continue
+                    if parts[0] in seen_u: errs.append(f'{p.name} {ln}行: 単元番号が重複 {parts[0]}')
                     seen_u.add(parts[0])
                     w = f'{code}{g}-{parts[0]} 単元名'
                     unit = dict(id=f'{code}{g}-{parts[0]}', no=parts[0], subject=subj, grade=g, area=parts[1],
                                 name=render(parts[2], 6, 'kanji', w).replace(' ', ''),
                                 nameKana=render(parts[2], g, 'kana', w), n=0)
-                    units.append(unit)
+                    units.append(unit); umap[parts[0]] = unit
                 elif line.startswith('#'): continue
                 elif line == '': flush(ln)
                 else: block.append(line)
             flush(len(lines))
-    return qs, units
 
 def num(s):
     """数として読めれば Fraction、だめなら None"""
@@ -201,7 +213,7 @@ def check_and_build(qs, units):
         out.append(dict(id=qid, subject=q['subject'], grade=g, unitId=u['id'], unit=u['name'], area=u['area'],
                         q=kj[0], choices=kj[1:5], exp=kj[5], kana=dict(q=kn[0], choices=kn[1:5], exp=kn[5])))
     for u in units:
-        if not 5 <= u['n'] <= 10: warns.append(f"{u['id']} {u['name']}: 問題数が {u['n']} 問（5〜10問にする）")
+        if u['n'] < 5: warns.append(f"{u['id']} {u['name']}: 問題数が {u['n']} 問（5問以上にする）")
     return out
 
 def yomi_check(qs):
