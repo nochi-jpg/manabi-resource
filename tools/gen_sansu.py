@@ -201,16 +201,16 @@ def grade3():
     G.unit('05')
     def addsub3():
         if R.random() < 0.5:
-            a = R.randint(105, 780); b = R.randint(105, 990 - a); c = a + b
+            a = R.randint(11, 78) * 10; b = R.randint(11, 98 - a // 10) * 10; c = a + b   # 何百何十どうし（暗算できる大きさ）
             nc = sum(((a // p % 10 + b // p % 10) % 10) * p for p in (1, 10, 100))
             return f'{a}＋{b}＝？', str(c), ints(c, [nc, c + 10, c - 10, c + 100, c - 100, c + 1]), 'くらいを_そろえて、{一|いち}のくらいから_じゅんに_{計算|けいさん}します。'
-        a = R.randint(300, 999); b = R.randint(105, a - 105); c = a - b
+        a = R.randint(30, 99) * 10; b = R.randint(11, a // 10 - 11) * 10; c = a - b
         rv = sum(abs(a // p % 10 - b // p % 10) * p for p in (1, 10, 100))
         return f'{a}−{b}＝？', str(c), ints(c, [rv, c + 10, c - 10, c + 100, c - 100, c + 1]), f'{c}＋{b}＝{a}で_たしかめられます。'
     G.many(34, addsub3)
     G.unit('08')
     def mul1():
-        a = R.randint(12, 99) if R.random() < 0.6 else R.randint(101, 499); b = R.randint(2, 9); c = a * b
+        a = R.randint(12, 99); b = R.randint(2, 9); c = a * b
         parts = '、'.join(f'{(a // p % 10) * p}×{b}＝{(a // p % 10) * p * b}' for p in (1, 10, 100) if a // p % 10)
         nc = sum(((a // p % 10) * b % 10) * p for p in (1, 10, 100)) + (a // (100 if a > 99 else 10) % 10 * b // 10) * (1000 if a > 99 else 100)
         return f'{a}×{b}＝？', str(c), ints(c, [nc, c + b, c - b, c + 10, c - 10, c + 100]), f'{parts}。あわせて_{c}。'
@@ -241,7 +241,7 @@ def grade3():
     G.many(20, frac3)
     G.unit('14')
     def mul2():
-        a = R.randint(11, 69); b = R.randint(11, 49); c = a * b
+        a = R.randint(11, 30); b = R.choice([11, 12, 13, 14, 15, 20, 30, 40]); c = a * b
         return (f'{a}×{b}＝？', str(c), ints(c, [a * (b % 10) + a * (b // 10), c + a, c - a, c + 10, c - 10, c + 100]),
                 f'{a}×{b % 10}＝{a * (b % 10)}、{a}×{b // 10 * 10}＝{a * (b // 10 * 10)}。あわせて_{c}。' if b % 10 else f'{a}×{b // 10}＝{a * (b // 10)}の_10{{倍|ばい}}。')
     G.many(22, mul2)
@@ -254,12 +254,12 @@ def grade4():
     def div4():
         k = R.randint(0, 2)
         if k == 0: d = R.randint(2, 9); q_ = R.randint(11, 99 // d) if 99 // d >= 11 else 11; n = d * q_
-        elif k == 1: d = R.randint(2, 9); q_ = R.randint(101 // d + 1, 999 // d); n = d * q_
-        else: d = R.randint(11, 49); q_ = R.randint(2, 9); n = d * q_
+        elif k == 1: d = R.randint(2, 6); q_ = R.randint(101 // d + 1, 300 // d); n = d * q_
+        else: d = R.randint(11, 25); q_ = R.randint(2, 9); n = d * q_
         return f'{n}÷{d}＝？', str(q_), ints(q_, [q_ + 1, q_ - 1, q_ + 10, q_ - 10 if q_ > 10 else q_ + 2, q_ * 10, q_ + 2]), f'{d}×{q_}＝{n}で_たしかめられます。'
     G.many(30, div4)
     def divrem4():
-        d = R.randint(3, 9); q_ = R.randint(11, 30); r = R.randint(1, d - 1); n = d * q_ + r
+        d = R.randint(3, 8); q_ = R.randint(11, (99 - (d - 1)) // d); r = R.randint(1, d - 1); n = d * q_ + r   # 2けた÷1けた
         r2 = r + 1 if r + 1 < d else r - 1
         return (f'{n}÷{d}＝？', f'{q_}あまり{r}', [f'{q_}あまり{r2}' if r2 > 0 else None, f'{q_ + 1}あまり{r}', f'{q_ - 1}あまり{r + d}', f'{q_ - 10}あまり{r}' if q_ > 10 else None, f'{q_ + 10}あまり{r}'],
                 f'{d}×{q_}＝{d * q_}、{n}−{d * q_}＝{r}。')
@@ -267,9 +267,9 @@ def grade4():
     G.unit('05')
     def dec4():
         if R.random() < 0.5:
-            a = F(R.randint(101, 899), 100); b = F(R.randint(11, 899), 100 if R.random() < 0.6 else 10); c = a + b; q = f'{dec(a)}＋{dec(b)}＝？'
+            a = F(R.randint(101, 599), 100); b = F(R.randint(11, 399), 100 if R.random() < 0.6 else 10); c = a + b; q = f'{dec(a)}＋{dec(b)}＝？'
         else:
-            a = F(R.randint(201, 999), 100); b = F(R.randint(11, int(a * 10) - 1), 10) if R.random() < 0.4 else F(R.randint(11, int(a * 100) - 1), 100); c = a - b; q = f'{dec(a)}−{dec(b)}＝？'
+            a = F(R.randint(201, 799), 100); b = F(R.randint(11, int(a * 10) - 1), 10) if R.random() < 0.4 else F(R.randint(11, int(a * 100) - 1), 100); c = a - b; q = f'{dec(a)}−{dec(b)}＝？'
         if c <= 0: return None
         w = [c + F(1, 10), c - F(1, 10), c * 10, c + F(1, 100), c + 1, c - F(1, 100)]
         return q, dec(c), [dec(x) for x in w if x > 0 and x != c], '{位|くらい}を_そろえて、{整数|せいすう}と_{同|おな}じ_ように_{計算|けいさん}します。'
@@ -293,7 +293,7 @@ def grade4():
     def order():
         k = R.randint(0, 3)
         if k == 0: a, b, c_ = R.randint(2, 20), R.randint(2, 9), R.randint(2, 9); q = f'{a}＋{b}×{c_}＝？'; c = a + b * c_; w = [(a + b) * c_, a * b + c_, c + 1, c - 1]; e = f'かけ{{算|ざん}}を_{{先|さき}}に_{{計算|けいさん}}。{b}×{c_}＝{b * c_}、{a}＋{b * c_}＝{c}。'
-        elif k == 1: a, b, c_ = R.randint(2, 15), R.randint(2, 15), R.randint(2, 9); q = f'（{a}＋{b}）×{c_}＝？'; c = (a + b) * c_; w = [a + b * c_, a * c_ + b, c + c_, c - c_]; e = f'（　）の_{{中|なか}}を_{{先|さき}}に_{{計算|けいさん}}。{a + b}×{c_}＝{c}。'
+        elif k == 1: a, b, c_ = R.randint(2, 10), R.randint(2, 10), R.randint(2, 9); q = f'（{a}＋{b}）×{c_}＝？'; c = (a + b) * c_; w = [a + b * c_, a * c_ + b, c + c_, c - c_]; e = f'（　）の_{{中|なか}}を_{{先|さき}}に_{{計算|けいさん}}。{a + b}×{c_}＝{c}。'
         elif k == 2:
             c_ = R.randint(2, 9); b = c_ * R.randint(2, 9); a = R.randint(b // c_ + 2, 60); q = f'{a}−{b}÷{c_}＝？'; c = a - b // c_
             w = [(a - b) // c_ if a > b and (a - b) % c_ == 0 else abs(a - b), a - b + c_, c + 1, c - 1, a + b // c_]; e = f'わり{{算|ざん}}を_{{先|さき}}に_{{計算|けいさん}}。{b}÷{c_}＝{b // c_}、{a}−{b // c_}＝{c}。'
@@ -324,11 +324,11 @@ def grade4():
     G.unit('12')
     def decmul():
         if R.random() < 0.5:
-            a = F(R.randint(2, 99), 10); b = R.randint(2, 9); c = a * b
+            a = F(R.randint(2, 49), 10); b = R.randint(2, 9); c = a * b
             if a.denominator == 1: return None
             q = f'{dec(a)}×{b}＝？'; e = f'{int(a * 10)}×{b}＝{int(a * 10) * b}。その_1/10で_{dec(c)}。'
         else:
-            b = R.randint(2, 9); c = F(R.randint(2, 99), 10); a = c * b
+            b = R.randint(2, 9); c = F(R.randint(2, 49), 10); a = c * b
             if c.denominator == 1 or a.denominator > 10: return None
             q = f'{dec(a)}÷{b}＝？'; e = f'{dec(c)}×{b}＝{dec(a)}で_たしかめられます。'
         w = [c * 10, c / 10, c + F(1, 10), c - F(1, 10), c + 1, c + F(1, 5)]
@@ -341,7 +341,7 @@ def grade5():
     G = Gen(5); R = G.rng
     G.unit('04')
     def decmul5():
-        a = F(R.randint(2, 95), 10); b = F(R.randint(2, 49), 10)
+        a = F(R.randint(2, 30), 10); b = F(R.choice([2, 3, 4, 5, 6, 7, 8, 9, 15, 25]), 10)   # かたほうは かんたんな数
         if a.denominator == 1 and b.denominator == 1: return None
         c = a * b; ai, bi = dec(a).replace('.', '').lstrip('0'), dec(b).replace('.', '').lstrip('0')
         places = (a.denominator > 1) + (b.denominator > 1)
@@ -351,7 +351,7 @@ def grade5():
     G.many(32, decmul5)
     G.unit('05')
     def decdiv5():
-        d = F(R.randint(2, 49), 10); q_ = F(R.randint(2, 90), R.choice([1, 1, 10])); n = d * q_
+        d = F(R.choice([2, 3, 4, 5, 6, 7, 8, 9, 12, 15, 25]), 10); q_ = F(R.randint(2, 20)); n = d * q_
         if d.denominator == 1 or n.denominator > 100 or q_ == d: return None
         e = f'わる{{数|かず}}が_{{整数|せいすう}}に_なる_ように、りょうほうを_10{{倍|ばい}}。{dec(n * 10)}÷{dec(d * 10)}＝{dec(q_)}。'
         w = [q_ * 10, q_ / 10, q_ + 1, q_ * 100 if q_ < 10 else q_ / 100, q_ - 1 if q_ > 1 else q_ + 2, q_ + F(1, 10)]
@@ -359,11 +359,11 @@ def grade5():
     G.many(30, decdiv5)
     G.unit('08')
     def lcmgcd():
-        a = R.randint(2, 24); b = R.randint(2, 24)
+        a = R.randint(2, 15); b = R.randint(2, 18)
         if a >= b: return None
         g = gcd(a, b); l = a * b // g
         if R.random() < 0.5:
-            if l > 100: return None
+            if l > 60: return None
             return (f'{a}と_{b}の_{{最小公倍数|さいしょうこうばいすう}}は？', str(l), ints(l, [a * b if a * b != l else l * 2, g if g > 1 else a + b, l * 2, a + b, l + a, l - a if l - a > b else l + b]),
                     f'{b}の_{{倍数|ばいすう}}の_うち、{a}でも_わり{{切|き}}れる_いちばん_{{小|ちい}}さい_{{数|かず}}は_{l}。')
         if g == 1 or b > 60: return None
@@ -385,12 +385,12 @@ def grade5():
     G.many(18, f2d)
     G.unit('10')
     def fracadd():
-        b = R.choice([2, 3, 4, 5, 6, 8, 9, 10, 12]); d = R.choice([2, 3, 4, 5, 6, 8, 9, 10, 12, 15])
+        b = R.choice([2, 3, 4, 5, 6, 8, 10]); d = R.choice([2, 3, 4, 5, 6, 8, 10])
         if b == d: return None
         a = R.randint(1, b - 1); c_ = R.randint(1, d - 1)
         if gcd(a, b) != 1 or gcd(c_, d) != 1: return None
         x, y = F(a, b), F(c_, d); l = b * d // gcd(b, d)
-        if l > 60: return None
+        if l > 30: return None
         if R.random() < 0.5:
             c = x + y; q = f'{a}/{b}＋{c_}/{d}＝？'; raw = f'{a * l // b}/{l}＋{c_ * l // d}/{l}＝{a * l // b + c_ * l // d}/{l}'
             w = [F(a + c_, b + d), F(a + c_, l), F(c.numerator + 1, c.denominator), F(a + c_, b * d), abs(x - y), F(c.numerator, c.denominator + 1)]
@@ -460,7 +460,7 @@ def grade6():
     G.many(24, xeq)
     G.unit('03')
     def fmul():
-        b = R.randint(2, 9); a = R.randint(1, b - 1); d = R.randint(2, 9); c_ = R.randint(1, d + 3)
+        b = R.randint(2, 7); a = R.randint(1, b - 1); d = R.randint(2, 7); c_ = R.randint(1, d + 1)
         if gcd(a, b) != 1 or gcd(c_, d) != 1 or c_ == d: return None
         x, y = F(a, b), F(c_, d); c = x * y
         if R.random() < 0.25:
@@ -473,7 +473,7 @@ def grade6():
     G.many(40, fmul)
     G.unit('04')
     def fdiv():
-        b = R.randint(2, 9); a = R.randint(1, b + 2); d = R.randint(2, 9); c_ = R.randint(1, d + 2)
+        b = R.randint(2, 7); a = R.randint(1, b + 1); d = R.randint(2, 7); c_ = R.randint(1, d + 1)
         if gcd(a, b) != 1 or gcd(c_, d) != 1 or a == b or c_ == d: return None
         x, y = F(a, b), F(c_, d)
         if R.random() < 0.25:
@@ -501,7 +501,7 @@ def grade6():
     G.many(34, ratio)
     G.unit('07')
     def circle():
-        r = R.choice([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20]); P = F(314, 100)
+        r = R.choice([1, 2, 3, 4, 5, 10, 20]); P = F(314, 100)
         if R.random() < 0.6:
             c = r * r * P; w = [2 * r * P, r * P, 4 * r * r * P, r * r, c / 2, 2 * r * r * P]
             return (f'{{半径|はんけい}}が_{r}cmの_{{円|えん}}の_{{面積|めんせき}}は？', f'{dec(c)}cm²', [f'{dec(x)}cm²' for x in w if x != c],
