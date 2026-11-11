@@ -31,6 +31,11 @@ h2{font-size:18px;margin:8px 0}
 .choices button[disabled]{cursor:default;color:var(--ink)}
 .result{margin-top:12px;padding:10px 12px;border-radius:8px;background:var(--hl)}
 .result b.o{color:var(--ok)} .result b.x{color:var(--ng)}
+.exp{margin-top:8px;padding-top:8px;border-top:1px solid #ecdca0;line-height:1.6}
+.explbl{display:inline-block;background:#8a6d00;color:#fff;font-size:12px;border-radius:4px;padding:1px 6px;margin-right:6px}
+.qhead{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px}
+.qhead .qmeta{margin:0}
+.kbtn{flex:none;font-size:13px;padding:6px 10px}
 .chk{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)}
 .chk span.lbl{font-size:13px;color:var(--sub)}
 .chk button.on.wait{background:#eee;border-color:var(--wait)}
@@ -85,6 +90,7 @@ function setMemo(id, m){ CHK[id] = Object.assign({ s: 'ng' }, CHK[id], { m, t: n
 const STL = { wait: '未チェック', ok: '問題なし', ng: '違和感あり' };
 function setKana(v){ KANA = v; try { localStorage.setItem(KEY + '_kana', v ? '1' : '0'); } catch (e) {} render(); }
 function T(q){ return KANA ? q.kana : q; }
+function kanaBtn(){ return `<button class="kbtn" onclick="setKana(!KANA);document.getElementById('kana').checked=KANA;reModal()">${KANA ? '漢字にする' : 'ひらがなにする'}</button>`; }
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 function shuffle(a){ a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 function grades(){ return [...new Set(Q.map(q => q.grade))].sort(); }
@@ -178,11 +184,11 @@ function quiz(){
     if (QZ.ans !== null) { if (k === 0) cls = 'right'; else if (k === QZ.ans) cls = 'wrong'; }
     return `<button class="${cls}" ${QZ.ans !== null ? 'disabled' : ''} onclick="answer(${k})">${esc(t.choices[k])}</button>`;
   }).join('');
-  const res = QZ.ans === null ? '' : `<div class="result"><b class="${QZ.ans === 0 ? 'o' : 'x'}">${QZ.ans === 0 ? '○ せいかい' : '× ざんねん'}</b>　こたえ：${esc(t.choices[0])}<br>${esc(t.exp)}</div>
+  const res = QZ.ans === null ? '' : `<div class="result"><b class="${QZ.ans === 0 ? 'o' : 'x'}">${QZ.ans === 0 ? '○ せいかい！' : '× ざんねん'}</b><div style="margin-top:4px">こたえ：<b>${esc(t.choices[0])}</b></div><div class="exp"><span class="explbl">${KANA ? 'かいせつ' : '解説'}</span>${esc(t.exp)}</div></div>
     <div class="bar"><button class="pri" onclick="nextQ()">つぎの問題 ▶</button></div>`;
   return `<div class="crumb">${esc(QZ.label)}　｜　${QZ.done} 問中 ${QZ.right} 問正解　｜　<a href="#" onclick="go('title');return false">メニューへもどる</a></div>
   <div class="card">
-    <div class="qmeta">${q.id}　${q.grade}年 ${q.subject}　${esc(q.unit)}</div>
+    <div class="qhead"><span class="qmeta">${q.id}　${q.grade}年 ${q.subject}　${esc(q.unit)}</span>${kanaBtn()}</div>
     <div class="qtext">${esc(t.q)}</div>
     <div class="choices">${chs}</div>
     ${res}
@@ -261,6 +267,7 @@ function reModal(){
   const nav = idx < 0 ? '' : `<button ${idx > 0 ? '' : 'disabled'} onclick="openQ('${rows[idx - 1] && rows[idx - 1].id}')">◀ 前</button><button ${idx < rows.length - 1 ? '' : 'disabled'} onclick="openQ('${rows[idx + 1] && rows[idx + 1].id}')">次 ▶</button>`;
   document.getElementById('modal').innerHTML = `<div class="modal" onclick="if(event.target===this)closeModal()"><div class="card">
     <div class="bar" style="justify-content:space-between;margin-top:0"><span class="qmeta" style="margin:0">${q.id}　${q.grade}年 ${q.subject}　${esc(q.unit)}（${esc(q.area)}）</span><span>${nav}<button onclick="closeModal()">✕ とじる</button></span></div>
+    <div class="qhead"><span></span>${kanaBtn()}</div>
     <div class="qtext">${esc(t.q)}</div>
     <ol class="ans">${t.choices.map((c, k) => `<li class="${k === 0 ? 'c' : ''}">${esc(c)}${k === 0 ? '　← 正解' : ''}</li>`).join('')}</ol>
     <div class="result">${esc(t.exp)}</div>
