@@ -51,6 +51,14 @@ class Gen:
         head, rest = ws[:2], ws[2:6]
         pick = head + [self.rng.choice(rest)] if rest else ws[:3]
         self.rng.shuffle(pick)
+        # 正解より細かい小数（割り切れない小数など）は使わない。乱数の流れを変えないよう、選んだあとで入れかえる
+        places = lambda s: len(s.split('.')[1]) if re.fullmatch(r'\d+\.\d+', s) else 0
+        maxp = max(3, places(correct))
+        spare = [w for w in ws if w not in pick and places(w) <= maxp]
+        for i, w in enumerate(pick):
+            if places(w) > maxp:
+                if not spare: return False
+                pick[i] = spare.pop(0)
         self.seen.add(plain(q))
         self.out += [q, correct, *pick, exp, '']
         self.count += 1

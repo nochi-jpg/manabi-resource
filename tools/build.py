@@ -201,6 +201,8 @@ def check_and_build(qs, units):
                     if not mm or divmod(int(mm[1]), int(mm[2])) != (int(m[1]), int(m[2])): errs.append(f'{tag}: 計算が合わない（正解 {c[0]}）')
                 elif nums[0] is None: warns.append(f'{tag}: 正解を数として読めない {c[0]}')
                 elif nums[0] != v: errs.append(f'{tag}: 計算が合わない（式の値 {v}・正解 {c[0]}）')
+        for x in kj[:5]:
+            if re.search(r'\d\.\d{6,}', x): errs.append(f'{tag}: 小数のけたが多すぎる「{x}」')
         L = [len(x) for x in c]
         if L[0] >= 10 and L[0] > 1.7 * max(L[1:]): warns.append(f'{tag}: 正解だけ長い {c}')
         if L[0] * 1.7 < min(L[1:]) and min(L[1:]) >= 10: warns.append(f'{tag}: 正解だけ短い {c}')
