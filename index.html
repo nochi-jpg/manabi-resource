@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>まなび問題DB チェッカー</title>
+<style>
+:root{--bg:#f6f7fb;--card:#fff;--ink:#222;--sub:#666;--line:#d7dbe6;--pri:#2f6fde;--ok:#1f9d55;--ng:#d64545;--wait:#999;--hl:#fff6d6}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;font-size:16px}
+header{position:sticky;top:0;z-index:5;background:#223;color:#fff;display:flex;align-items:center;gap:8px;padding:8px 12px;flex-wrap:wrap}
+header b{font-size:15px;margin-right:auto}
+header button,header label{font-size:13px}
+main{max-width:880px;margin:0 auto;padding:16px}
+button{font:inherit;cursor:pointer;border:1px solid var(--line);background:var(--card);border-radius:8px;padding:8px 12px}
+button:hover{border-color:var(--pri)}
+button.pri{background:var(--pri);color:#fff;border-color:var(--pri)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin:8px 0 20px}
+.grid button{text-align:left;padding:12px}
+.grid button small{display:block;color:var(--sub);font-size:12px;margin-top:2px}
+.grid button.big{grid-column:1/-1;font-weight:bold}
+h2{font-size:18px;margin:8px 0}
+.crumb{color:var(--sub);font-size:13px;margin-bottom:8px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:12px}
+.qmeta{font-size:12px;color:var(--sub);margin-bottom:8px;word-break:break-all}
+.qtext{font-size:20px;line-height:1.6;margin:4px 0 14px;white-space:pre-wrap}
+.choices{display:grid;gap:8px}
+.choices button{text-align:left;font-size:17px;padding:12px}
+.choices button.right{background:#e3f6ea;border-color:var(--ok)}
+.choices button.wrong{background:#fde6e6;border-color:var(--ng)}
+.choices button[disabled]{cursor:default;color:var(--ink)}
+.result{margin-top:12px;padding:10px 12px;border-radius:8px;background:var(--hl)}
+.result b.o{color:var(--ok)} .result b.x{color:var(--ng)}
+.chk{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)}
+.chk span.lbl{font-size:13px;color:var(--sub)}
+.chk button.on.wait{background:#eee;border-color:var(--wait)}
+.chk button.on.ok{background:var(--ok);color:#fff;border-color:var(--ok)}
+.chk button.on.ng{background:var(--ng);color:#fff;border-color:var(--ng)}
+textarea{width:100%;min-height:64px;font:inherit;font-size:14px;border:1px solid var(--line);border-radius:8px;padding:8px;margin-top:6px}
+.saved{font-size:12px;color:var(--ok);margin-left:6px}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0}
+.bar select,.bar input{font:inherit;font-size:14px;padding:6px;border:1px solid var(--line);border-radius:6px;background:#fff}
+table{width:100%;border-collapse:collapse;background:#fff;font-size:14px}
+th,td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+tr.row{cursor:pointer} tr.row:hover{background:#eef3ff}
+.st{display:inline-block;min-width:3.5em;text-align:center;border-radius:4px;font-size:12px;padding:1px 4px;color:#fff}
+.st.wait{background:var(--wait)} .st.ok{background:var(--ok)} .st.ng{background:var(--ng)}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:flex-start;justify-content:center;padding:24px 12px;overflow:auto;z-index:10}
+.modal .card{max-width:720px;width:100%}
+.ans li{margin:3px 0}.ans li.c{color:var(--ok);font-weight:bold}
+.muted{color:var(--sub);font-size:13px}
+.pager{display:flex;gap:6px;align-items:center;margin:10px 0}
+.stats{display:flex;gap:14px;flex-wrap:wrap;font-size:14px}
+@media (max-width:600px){.qtext{font-size:18px}.hide-sm{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <b>まなび問題DB チェッカー</b>
+  <button onclick="go('title')">メニュー</button>
+  <label><input type="checkbox" id="kana" onchange="setKana(this.checked)"> ひらがなモード</label>
+</header>
+<main id="app"><p>問題を読みこんでいます…</p></main>
+<div id="modal"></div>
+<script src="dist/questions.js"></script>
+<script>
+// ===== データ =====
+const DB = window.MANABI_QDB;
+const Q = DB.questions;
+const BYID = Object.fromEntries(Q.map(q => [q.id, q]));
+const SUBJ = ['国語','算数','せいかつA','せいかつB','理科','社会','英語'];
+const UNITS = DB.units;
+const KEY = 'manabi_qdb_check_v1';
+let CHK = {};
+try { CHK = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) { CHK = {}; }
+let KANA = false;
+try { KANA = localStorage.getItem(KEY + '_kana') === '1'; } catch (e) {}
+document.getElementById('kana').checked = KANA;
+
+function saveChk(){ try { localStorage.setItem(KEY, JSON.stringify(CHK)); } catch (e) { alert('ブラウザに保存できませんでした。「チェック結果」から書き出してください。'); } }
+function st(id){ return (CHK[id] && CHK[id].s) || 'wait'; }
+function memo(id){ return (CHK[id] && CHK[id].m) || ''; }
+function setSt(id, s){ CHK[id] = Object.assign({}, CHK[id], { s, t: new Date().toISOString() }); saveChk(); }
+function setMemo(id, m){ CHK[id] = Object.assign({ s: 'ng' }, CHK[id], { m, t: new Date().toISOString() }); if (m && CHK[id].s !== 'ng') CHK[id].s = 'ng'; saveChk(); }
+const STL = { wait: '未チェック', ok: '問題なし', ng: '違和感あり' };
+function setKana(v){ KANA = v; try { localStorage.setItem(KEY + '_kana', v ? '1' : '0'); } catch (e) {} render(); }
+function T(q){ return KANA ? q.kana : q; }
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+function shuffle(a){ a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function grades(){ return [...new Set(Q.map(q => q.grade))].sort(); }
+function subjOf(g){ return SUBJ.filter(s => Q.some(q => q.grade === g && q.subject === s)); }
+function count(f){ return Q.filter(f).length; }
+
+// ===== 画面 =====
+let VIEW = { name: 'title' };
+function go(name, opt){ VIEW = Object.assign({ name }, opt || {}); closeModal(); render(); window.scrollTo(0, 0); }
+function render(){
+  const app = document.getElementById('app');
+  app.innerHTML = ({ title, pickGrade, pickSubj, pickUnit, quiz, list, report })[VIEW.name]();
+  if (VIEW.name === 'quiz') bindMemo('qmemo', QZ.cur);
+}
+
+function title(){
+  const n = Object.values(CHK);
+  return `
+  <h2>メニュー</h2>
+  <div class="stats card">
+    <span>全 ${Q.length} 問</span>
+    <span><span class="st ok">問題なし</span> ${n.filter(x => x.s === 'ok').length}</span>
+    <span><span class="st ng">違和感あり</span> ${n.filter(x => x.s === 'ng').length}</span>
+  </div>
+  <div class="grid">
+    <button class="big pri" onclick="go('pickGrade')">クイズで遊ぶ<small style="color:#dde">学年・教科・単元を選ぶか、ランダムで出題</small></button>
+    <button class="big" onclick="go('list')">問題一覧<small>クリックで問題・答え・解説を表示してチェック</small></button>
+    <button class="big" onclick="go('report')">チェック結果（違和感リスト・書き出し）<small>違和感ありの一覧。CSV・テキストで書き出し</small></button>
+  </div>
+  <p class="muted">チェック結果は、このブラウザの中に保存されます（ほかの人やほかの端末には共有されません）。まとめて伝えるときは「チェック結果」から書き出してください。</p>`;
+}
+
+function pickGrade(){
+  return `<div class="crumb">クイズ</div><h2>学年をえらぶ</h2>
+  <div class="grid">
+    <button class="big pri" onclick="startQuiz({})">オールランダムクイズ<small style="color:#dde">全学年・全教科から ${Q.length} 問</small></button>
+    ${grades().map(g => `<button onclick="go('pickSubj',{g:${g}})">${g}年<small>${count(q => q.grade === g)} 問</small></button>`).join('')}
+  </div>`;
+}
+function pickSubj(){
+  const g = VIEW.g;
+  return `<div class="crumb"><a href="#" onclick="go('pickGrade');return false">クイズ</a> ＞ ${g}年</div><h2>${g}年：教科をえらぶ</h2>
+  <div class="grid">
+    <button class="big pri" onclick="startQuiz({g:${g}})">${g}年 ランダムクイズ<small style="color:#dde">${count(q => q.grade === g)} 問</small></button>
+    ${subjOf(g).map(s => `<button onclick="go('pickUnit',{g:${g},s:'${s}'})">${s}<small>${count(q => q.grade === g && q.subject === s)} 問</small></button>`).join('')}
+  </div>`;
+}
+function pickUnit(){
+  const { g, s } = VIEW;
+  const us = UNITS.filter(u => u.grade === g && u.subject === s);
+  return `<div class="crumb"><a href="#" onclick="go('pickGrade');return false">クイズ</a> ＞ <a href="#" onclick="go('pickSubj',{g:${g}});return false">${g}年</a> ＞ ${s}</div>
+  <h2>${g}年 ${s}：単元をえらぶ</h2>
+  <div class="grid">
+    <button class="big pri" onclick="startQuiz({g:${g},s:'${s}'})">${g}年 ${s} ランダムクイズ<small style="color:#dde">${count(q => q.grade === g && q.subject === s)} 問</small></button>
+    ${us.map(u => `<button onclick="startQuiz({u:'${u.id}'})">${esc(KANA ? u.nameKana : u.name)}<small>${esc(u.area)}・${u.count} 問・${ngCount(u.id)}</small></button>`).join('')}
+  </div>`;
+}
+function ngCount(uid){
+  const ids = Q.filter(q => q.unitId === uid).map(q => q.id);
+  const ok = ids.filter(i => st(i) === 'ok').length, ng = ids.filter(i => st(i) === 'ng').length;
+  return `チェック ${ok + ng}/${ids.length}` + (ng ? `（違和感${ng}）` : '');
+}
+
+// ===== クイズ =====
+let QZ = null;
+function startQuiz(f){
+  const pool = Q.filter(q => (!f.g || q.grade === f.g) && (!f.s || q.subject === f.s) && (!f.u || q.unitId === f.u));
+  let label = '全学年・全教科';
+  if (f.u) { const u = UNITS.find(x => x.id === f.u); label = `${u.grade}年 ${u.subject} ${u.name}`; }
+  else if (f.s) label = `${f.g}年 ${f.s}`; else if (f.g) label = `${f.g}年`;
+  QZ = { label, filter: f, order: shuffle(pool.map(q => q.id)), i: 0, right: 0, done: 0 };
+  nextQ(true);
+}
+function nextQ(first){
+  if (!first) QZ.i++;
+  if (QZ.i >= QZ.order.length) { QZ.order = shuffle(QZ.order); QZ.i = 0; }
+  QZ.cur = QZ.order[QZ.i];
+  QZ.ans = null;
+  QZ.shuf = shuffle([0, 1, 2, 3]);
+  go('quiz');
+}
+function answer(k){
+  if (QZ.ans !== null) return;
+  QZ.ans = k; QZ.done++; if (k === 0) QZ.right++;
+  render();
+}
+function quiz(){
+  const q = BYID[QZ.cur], t = T(q);
+  const chs = QZ.shuf.map(k => {
+    let cls = '';
+    if (QZ.ans !== null) { if (k === 0) cls = 'right'; else if (k === QZ.ans) cls = 'wrong'; }
+    return `<button class="${cls}" ${QZ.ans !== null ? 'disabled' : ''} onclick="answer(${k})">${esc(t.choices[k])}</button>`;
+  }).join('');
+  const res = QZ.ans === null ? '' : `<div class="result"><b class="${QZ.ans === 0 ? 'o' : 'x'}">${QZ.ans === 0 ? '○ せいかい' : '× ざんねん'}</b>　こたえ：${esc(t.choices[0])}<br>${esc(t.exp)}</div>
+    <div class="bar"><button class="pri" onclick="nextQ()">つぎの問題 ▶</button></div>`;
+  return `<div class="crumb">${esc(QZ.label)}　｜　${QZ.done} 問中 ${QZ.right} 問正解　｜　<a href="#" onclick="go('title');return false">メニューへもどる</a></div>
+  <div class="card">
+    <div class="qmeta">${q.id}　${q.grade}年 ${q.subject}　${esc(q.unit)}</div>
+    <div class="qtext">${esc(t.q)}</div>
+    <div class="choices">${chs}</div>
+    ${res}
+    ${QZ.ans === null ? `<div class="bar"><button onclick="nextQ()">とばす ▶</button></div>` : ''}
+    ${chkBox(q.id, 'qmemo', QZ.ans === null)}
+  </div>`;
+}
+
+// ===== チェック欄（クイズ・ポップアップ共通） =====
+function chkBox(id, mid, hideAnswer){
+  const s = st(id);
+  const b = (k) => `<button class="${s === k ? 'on ' + k : ''}" onclick="setSt('${id}','${k}');render();reModal()">${STL[k]}</button>`;
+  return `<div class="chk"><span class="lbl">チェック：</span>${b('wait')}${b('ok')}${b('ng')}</div>
+  <div><span class="lbl muted">違和感メモ（書くと自動で「違和感あり」になります）${hideAnswer ? '　※答えを見る前でも書けます' : ''}</span><span class="saved" id="${mid}_saved"></span>
+  <textarea id="${mid}" placeholder="例：選択肢の2つめも正解に見える／解説の漢字が学年に合わない など">${esc(memo(id))}</textarea></div>`;
+}
+function bindMemo(mid, id){
+  const el = document.getElementById(mid); if (!el) return;
+  let timer;
+  const flush = () => { clearTimeout(timer); if (el.value !== memo(id)) { setMemo(id, el.value); const s = document.getElementById(mid + '_saved'); if (s) s.textContent = '保存しました'; } };
+  el.addEventListener('blur', flush);
+  el.addEventListener('input', () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      const before = st(id);
+      setMemo(id, el.value);
+      document.getElementById(mid + '_saved').textContent = '保存しました';
+      if (before !== st(id)) {   // 状態が変わったらボタンだけ描きなおす
+        document.querySelectorAll('.chk button').forEach(b => { const k = b.textContent === STL.ok ? 'ok' : b.textContent === STL.ng ? 'ng' : 'wait'; b.className = st(id) === k ? 'on ' + k : ''; });
+      }
+    }, 400);
+  });
+}
+
+// ===== 問題一覧 =====
+let LF = { g: '', s: '', u: '', st: '', w: '', page: 0 };
+const PER = 100;
+function listRows(){
+  const w = LF.w.trim();
+  return Q.filter(q => (!LF.g || q.grade == LF.g) && (!LF.s || q.subject === LF.s) && (!LF.u || q.unitId === LF.u)
+    && (!LF.st || st(q.id) === LF.st)
+    && (!w || q.id.includes(w) || q.q.includes(w) || q.kana.q.includes(w) || q.choices.some(c => c.includes(w)) || q.exp.includes(w)));
+}
+function setLF(k, v){ LF[k] = v; if (k !== 'page') LF.page = 0; if (k === 'g' || k === 's') LF.u = ''; render(); }
+function list(){
+  const rows = listRows();
+  const pages = Math.max(1, Math.ceil(rows.length / PER));
+  if (LF.page >= pages) LF.page = pages - 1;
+  const show = rows.slice(LF.page * PER, LF.page * PER + PER);
+  const opt = (v, l, cur) => `<option value="${v}" ${String(cur) === String(v) ? 'selected' : ''}>${l}</option>`;
+  const us = UNITS.filter(u => (!LF.g || u.grade == LF.g) && (!LF.s || u.subject === LF.s));
+  const pager = `<div class="pager"><button ${LF.page ? '' : 'disabled'} onclick="setLF('page',${LF.page - 1})">◀</button> ${LF.page + 1} / ${pages} ページ（${rows.length} 問）<button ${LF.page < pages - 1 ? '' : 'disabled'} onclick="setLF('page',${LF.page + 1})">▶</button></div>`;
+  return `<h2>問題一覧</h2>
+  <div class="bar">
+    <select onchange="setLF('g',this.value)">${opt('', '全学年', LF.g)}${grades().map(g => opt(g, g + '年', LF.g)).join('')}</select>
+    <select onchange="setLF('s',this.value)">${opt('', '全教科', LF.s)}${SUBJ.map(s => opt(s, s, LF.s)).join('')}</select>
+    <select onchange="setLF('u',this.value)" style="max-width:220px">${opt('', '全単元', LF.u)}${us.map(u => opt(u.id, `${u.grade}年${u.subject} ${u.name}`, LF.u)).join('')}</select>
+    <select onchange="setLF('st',this.value)">${opt('', 'すべての状態', LF.st)}${['wait', 'ok', 'ng'].map(k => opt(k, STL[k], LF.st)).join('')}</select>
+    <input placeholder="ことば・IDで検索" value="${esc(LF.w)}" onchange="setLF('w',this.value)">
+  </div>
+  ${pager}
+  <table><thead><tr><th>状態</th><th class="hide-sm">ID</th><th>問題</th><th class="hide-sm">正解</th></tr></thead><tbody>
+  ${show.map(q => { const t = T(q); return `<tr class="row" onclick="openQ('${q.id}')"><td><span class="st ${st(q.id)}">${STL[st(q.id)]}</span></td><td class="hide-sm muted">${q.id}</td><td>${esc(t.q)}${memo(q.id) ? `<div class="muted">📝 ${esc(memo(q.id))}</div>` : ''}</td><td class="hide-sm">${esc(t.choices[0])}</td></tr>`; }).join('')}
+  </tbody></table>
+  ${pager}`;
+}
+
+// ===== ポップアップ =====
+let MODAL_ID = null;
+function openQ(id){ MODAL_ID = id; reModal(); }
+function reModal(){
+  if (!MODAL_ID) return;
+  const q = BYID[MODAL_ID], t = T(q);
+  const rows = VIEW.name === 'list' ? listRows() : VIEW.name === 'report' ? reportRows() : [];
+  const idx = rows.findIndex(r => r.id === MODAL_ID);
+  const nav = idx < 0 ? '' : `<button ${idx > 0 ? '' : 'disabled'} onclick="openQ('${rows[idx - 1] && rows[idx - 1].id}')">◀ 前</button><button ${idx < rows.length - 1 ? '' : 'disabled'} onclick="openQ('${rows[idx + 1] && rows[idx + 1].id}')">次 ▶</button>`;
+  document.getElementById('modal').innerHTML = `<div class="modal" onclick="if(event.target===this)closeModal()"><div class="card">
+    <div class="bar" style="justify-content:space-between;margin-top:0"><span class="qmeta" style="margin:0">${q.id}　${q.grade}年 ${q.subject}　${esc(q.unit)}（${esc(q.area)}）</span><span>${nav}<button onclick="closeModal()">✕ とじる</button></span></div>
+    <div class="qtext">${esc(t.q)}</div>
+    <ol class="ans">${t.choices.map((c, k) => `<li class="${k === 0 ? 'c' : ''}">${esc(c)}${k === 0 ? '　← 正解' : ''}</li>`).join('')}</ol>
+    <div class="result">${esc(t.exp)}</div>
+    <details class="muted" style="margin-top:8px"><summary>${KANA ? '漢字モード' : 'ひらがなモード'}の表示も見る</summary>
+      <p>${esc((KANA ? q : q.kana).q)}</p><p>${(KANA ? q : q.kana).choices.map(esc).join('　／　')}</p><p>${esc((KANA ? q : q.kana).exp)}</p></details>
+    ${chkBox(q.id, 'mmemo', false)}
+  </div></div>`;
+  bindMemo('mmemo', q.id);
+}
+function closeModal(){
+  const was = MODAL_ID; MODAL_ID = null;
+  document.getElementById('modal').innerHTML = '';
+  if (was && (VIEW.name === 'list' || VIEW.name === 'report')) render();
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+// ===== チェック結果 =====
+function reportRows(){ return Q.filter(q => st(q.id) === 'ng'); }
+function report(){
+  const rows = reportRows();
+  const okN = Object.values(CHK).filter(x => x.s === 'ok').length;
+  return `<h2>チェック結果</h2>
+  <div class="stats card"><span><span class="st ng">違和感あり</span> ${rows.length}</span><span><span class="st ok">問題なし</span> ${okN}</span><span>未チェック ${Q.length - rows.length - okN}</span></div>
+  <div class="bar">
+    <button class="pri" onclick="copyText()">違和感リストをテキストでコピー</button>
+    <button onclick="dlCSV()">違和感リストをCSVで保存</button>
+    <button onclick="dlJSON()">チェック結果をすべて保存（JSON）</button>
+    <label><button onclick="document.getElementById('imp').click()">JSONを読みこむ</button><input id="imp" type="file" accept=".json" style="display:none" onchange="impJSON(this.files[0])"></label>
+  </div>
+  <p class="muted">テキストをコピーして、そのままチャットにはりつければ伝えられます。JSONの保存・読みこみで、別の端末に引きつげます。</p>
+  <table><thead><tr><th class="hide-sm">ID</th><th>問題</th><th>メモ</th></tr></thead><tbody>
+  ${rows.map(q => `<tr class="row" onclick="openQ('${q.id}')"><td class="hide-sm muted">${q.id}</td><td>${esc(q.q)}<div class="muted">正解：${esc(q.choices[0])}</div></td><td>${esc(memo(q.id)) || '<span class="muted">（メモなし）</span>'}</td></tr>`).join('') || '<tr><td colspan="3" class="muted">違和感ありの問題はまだありません</td></tr>'}
+  </tbody></table>`;
+}
+function reportText(){
+  return reportRows().map(q => `【${q.id}】${q.grade}年${q.subject}「${q.unit}」\n問題：${q.q}\n選択肢：${q.choices.join(' / ')}（先頭が正解）\nメモ：${memo(q.id) || '（なし）'}`).join('\n\n');
+}
+function copyText(){
+  const s = reportText() || '違和感ありの問題はありません';
+  (navigator.clipboard ? navigator.clipboard.writeText(s) : Promise.reject()).then(() => alert('コピーしました')).catch(() => { prompt('コピーしてください', s); });
+}
+function dl(name, text, type){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type }));
+  a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+const csvCell = v => '"' + String(v).replace(/"/g, '""') + '"';
+function dlCSV(){
+  const head = ['id', '学年', '教科', '単元', '問題', '正解', 'まちがい1', 'まちがい2', 'まちがい3', '解説', 'メモ', '日時'];
+  const lines = reportRows().map(q => [q.id, q.grade, q.subject, q.unit, q.q, ...q.choices, q.exp, memo(q.id), CHK[q.id].t || ''].map(csvCell).join(','));
+  dl('iwakan_list.csv', '﻿' + [head.join(','), ...lines].join('\r\n'), 'text/csv');
+}
+function dlJSON(){ dl('check_result.json', JSON.stringify({ version: DB.version, saved: new Date().toISOString(), check: CHK }, null, 1), 'application/json'); }
+function impJSON(f){
+  if (!f) return;
+  f.text().then(s => {
+    const d = JSON.parse(s); const c = d.check || d; let n = 0;
+    for (const [id, v] of Object.entries(c)) { if (!BYID[id]) continue; if (!CHK[id] || (v.t || '') > (CHK[id].t || '')) { CHK[id] = v; n++; } }
+    saveChk(); alert(n + ' 問のチェック結果を読みこみました（新しい方を残します）'); render();
+  }).catch(() => alert('読みこめませんでした'));
+}
+
+if (!DB) document.getElementById('app').innerHTML = '<p>dist/questions.js を読みこめませんでした。</p>';
+else render();
+</script>
+</body>
+</html>
