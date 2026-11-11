@@ -33,6 +33,7 @@ def main():
         for chunk in re.split(r'^== ', text, flags=re.M)[1:]:
             head, _, rest = chunk.partition('\n')
             spec, _, body = rest.partition('\n--\n')
+            if not body: continue        # 表でないファイル（言葉リストなど）は とばす
             hp = [x.strip() for x in head.split('|', 3)]
             subj, grade = hp[0].split()
             key = (subj, int(grade))
@@ -49,11 +50,14 @@ def main():
                                    group=int(opt['group']) if 'group' in opt else None, num=opt.get('sort') == 'num', only=int(opt['only']) if 'only' in opt else None, exp=''))
                 elif line.startswith('E:'): qs[-1]['exp'] = line[2:].strip()
             rows = [[c.strip() for c in re.split(r'\s\|(?:\s+|$)', l.strip())] for l in body.split('\n') if l.strip() and not l.startswith('#')]
+            done = set()
             for r in rows:
                 for qi, q in enumerate(qs):
                     if q['only'] is not None and (len(r) <= q['only'] or not r[q['only']]): continue
                     rng = random.Random(f'{head}|{qi}|{r[0]}')
                     qt, correct = fill(q['tpl'], r), r[q['ans']]
+                    if qt in done: continue      # 同じ問題文は1回だけ（答えが同じ行が いくつもあるとき）
+                    done.add(qt)
                     if q['wrong']:
                         ws = [r[i] for i in q['wrong'] if i < len(r) and r[i]]
                     else:

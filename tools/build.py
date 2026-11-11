@@ -207,6 +207,9 @@ def check_and_build(qs, units):
         k = (q['subject'], re.sub(r'\s', '', kj[0]))
         if k in seenq: errs.append(f'{tag}: 同じ問題文が {seenq[k]} にある')
         seenq[k] = qid
+        kk = (q['subject'], 'かな', re.sub(r'\s', '', kn[0]))
+        if kk in seenq and seenq[kk][1] != kn[1]: errs.append(f'{tag}: かなモードで同じ問題文になり、答えがちがう（{seenq[kk][0]}）')
+        seenq.setdefault(kk, (qid, kn[1]))
         if not kj[5]: errs.append(f'{tag}: 解説がない')
         if len(kj[5]) > 70: warns.append(f'{tag}: 解説が長い（{len(kj[5])}字）')
         u = q['unit']
