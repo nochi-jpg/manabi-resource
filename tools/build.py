@@ -54,6 +54,8 @@ def learned(base, grade):
     return True
 
 def render(src, grade, mode, where='', allk=False):
+    if re.search(r'\d\{(日|人)\|(ついたち|ふつか|みっか|よっか|いつか|むいか|なのか|ようか|ここのか|とおか|はつか|ひとり|ふたり)\}', src):
+        errs.append(f'{where}: 数字が読みの外にある（{{1日|ついたち}} のように数字も中に入れる）')
     """mode: 'kanji' / 'kana'"""
     out, pos = [], 0
     for m in RE_TOKEN.finditer(src):
@@ -145,6 +147,7 @@ def num(s):
     if re.fullmatch(r'\d+(\.\d+)?', t): return Fraction(t)
     return None
 
+RE_EXPR_Q = re.compile(r'[＋−×÷]')
 RE_NUMTOK = re.compile(r'\d+と\d+/\d+|\d+/\d+|\d+(?:\.\d+)?|[＋−×÷+\-（）()]')
 def try_eval(q):
     """「12×3＝？」の形なら値を返す"""
@@ -202,7 +205,7 @@ def check_and_build(qs, units):
         if L[0] >= 10 and L[0] > 1.7 * max(L[1:]): warns.append(f'{tag}: 正解だけ長い {c}')
         if L[0] * 1.7 < min(L[1:]) and min(L[1:]) >= 10: warns.append(f'{tag}: 正解だけ短い {c}')
         nq = norm(kj[0])
-        if len(norm(c[0])) >= 3 and norm(c[0]) in nq and q['subject'] != '英語' and not all(norm(x) in nq for x in c[1:]):
+        if len(norm(c[0])) >= 3 and norm(c[0]) in nq and q['subject'] != '英語' and not any(len(norm(x)) >= 2 and norm(x) in nq for x in c[1:]) and not RE_EXPR_Q.search(kj[0]):
             warns.append(f'{tag}: 正解が問題文に入っている「{c[0]}」')
         k = (q['subject'], re.sub(r'\s', '', kj[0]))
         if k in seenq: errs.append(f'{tag}: 同じ問題文が {seenq[k]} にある')
